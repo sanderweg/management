@@ -64,14 +64,14 @@
     Firebase is nog niet ingesteld. Vul <code>firebaseConfig</code> in <code>auth.js</code> in.
   </div>
 
-  <div class="list-head"><h2>Betalingen per race</h2></div>
-  <div id="payments"></div>
-  <div class="empty-hint" id="paymentsHint" hidden></div>
-
-  <div class="list-head" style="margin-top: 28px;"><h2>Overzicht</h2></div>
-  <div class="locked-note" id="financeLocked">Ontgrendel met het wachtwoord om de boekhouding (inkomsten, uitgaven, saldo) te bekijken en te bewerken.</div>
+  <div class="locked-note" id="financeLocked">Ontgrendel met het wachtwoord om de financiën (betalingen, inkomsten, uitgaven, saldo) te bekijken en te bewerken.</div>
 
   <div id="financeSection" hidden>
+    <div class="list-head"><h2>Betalingen per race</h2></div>
+    <div id="payments"></div>
+    <div class="empty-hint" id="paymentsHint" hidden></div>
+
+    <div class="list-head" style="margin-top: 28px;"><h2>Overzicht</h2></div>
     <div class="stats" id="stats"></div>
 
     <form class="card entry-form" id="entryForm">
@@ -123,6 +123,8 @@
   let unlocked = false;
   let invites = [];
   let finance = [];
+  let invitesCol = null;
+  let invitesUnsub = null;
   let financeCol = null;
   let financeUnsub = null;
   let confirmDeleteId = null;
@@ -340,16 +342,26 @@
     }
   });
 
-  function subscribeFinance() {
-    if (financeUnsub || !financeCol) return;
-    financeUnsub = financeCol.onSnapshot(
-      (snap) => { finance = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderStats(); renderLedger(); updateEventOptions(); },
-      (err) => console.error("finance onSnapshot error", err)
-    );
+  function subscribeAll() {
+    if (invitesCol && !invitesUnsub) {
+      invitesUnsub = invitesCol.onSnapshot(
+        (snap) => { invites = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPayments(); },
+        (err) => console.error("invites onSnapshot error", err)
+      );
+    }
+    if (financeCol && !financeUnsub) {
+      financeUnsub = financeCol.onSnapshot(
+        (snap) => { finance = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderStats(); renderLedger(); updateEventOptions(); },
+        (err) => console.error("finance onSnapshot error", err)
+      );
+    }
   }
-  function unsubscribeFinance() {
+  function unsubscribeAll() {
+    if (invitesUnsub) { invitesUnsub(); invitesUnsub = null; }
     if (financeUnsub) { financeUnsub(); financeUnsub = null; }
+    invites = [];
     finance = [];
+    renderPayments();
     renderStats();
     renderLedger();
   }
@@ -358,18 +370,14 @@
     unlocked = u;
     financeSectionEl.hidden = !unlocked;
     financeLockedEl.hidden = unlocked;
-    if (unlocked) subscribeFinance();
-    else unsubscribeFinance();
+    if (unlocked) subscribeAll();
+    else unsubscribeAll();
   });
 
   function boot() {
     if (!TE.db) return;
+    invitesCol = TE.db.collection("invites");
     financeCol = TE.db.collection("finance");
-
-    TE.db.collection("invites").onSnapshot(
-      (snap) => { invites = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPayments(); },
-      (err) => console.error("invites onSnapshot error", err)
-    );
   }
 
   document.addEventListener("DOMContentLoaded", boot);
