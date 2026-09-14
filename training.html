@@ -92,17 +92,20 @@
     <button type="button" class="ghost" id="tabNat">🌧️ Nat</button>
   </div>
 
-  <form class="new-session-form" id="newSessionForm" hidden>
-    <div class="field">
-      <label for="inSessionTitle">Nieuw trainingsblok</label>
-      <input id="inSessionTitle" type="text" placeholder="bv. Blok 1 — Lijnvoering &amp; remwerk" autocomplete="off" required>
-    </div>
-    <button class="primary" type="submit">Toevoegen</button>
-  </form>
-  <div class="locked-note" id="lockedNote" hidden>Ontgrendel met het wachtwoord om trainingsblokken en opdrachten te bewerken.</div>
+  <div class="locked-note" id="trainingLocked">Ontgrendel met het wachtwoord om het trainingsschema te bekijken en te bewerken.</div>
 
-  <div id="sessions"></div>
-  <div class="empty-hint" id="emptyHint" hidden></div>
+  <div id="trainingSection" hidden>
+    <form class="new-session-form" id="newSessionForm">
+      <div class="field">
+        <label for="inSessionTitle">Nieuw trainingsblok</label>
+        <input id="inSessionTitle" type="text" placeholder="bv. Blok 1 — Lijnvoering &amp; remwerk" autocomplete="off" required>
+      </div>
+      <button class="primary" type="submit">Toevoegen</button>
+    </form>
+
+    <div id="sessions"></div>
+    <div class="empty-hint" id="emptyHint" hidden></div>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -112,6 +115,7 @@
 <script>
   let unlocked = false;
   let trainingCol = null;
+  let trainingUnsubs = [];
   let scenarioData = { droog: { sessions: [] }, nat: { sessions: [] } };
   let activeScenario = "droog";
   let confirmDeleteSession = null;
@@ -119,7 +123,8 @@
   const tabDroog = document.getElementById("tabDroog");
   const tabNat = document.getElementById("tabNat");
   const newSessionForm = document.getElementById("newSessionForm");
-  const lockedNoteEl = document.getElementById("lockedNote");
+  const trainingLockedEl = document.getElementById("trainingLocked");
+  const trainingSectionEl = document.getElementById("trainingSection");
   const sessionsEl = document.getElementById("sessions");
   const emptyHintEl = document.getElementById("emptyHint");
 
@@ -167,9 +172,6 @@
   tabNat.addEventListener("click", () => setActiveScenario("nat"));
 
   function render() {
-    newSessionForm.hidden = !unlocked;
-    lockedNoteEl.hidden = unlocked;
-
     sessionsEl.innerHTML = "";
     const sessions = currentSessions();
 
@@ -280,16 +282,10 @@
     }
   });
 
-  TE.onAuthChange((u) => {
-    unlocked = u;
-    render();
-  });
-
-  function boot() {
-    if (!TE.db) return;
-    trainingCol = TE.db.collection("training");
+  function subscribeTraining() {
+    if (trainingUnsubs.length || !trainingCol) return;
     for (const key of ["droog", "nat"]) {
-      trainingCol.doc(key).onSnapshot(
+      const unsub = trainingCol.doc(key).onSnapshot(
         (snap) => {
           scenarioData[key] = snap.exists ? snap.data() : { sessions: [] };
           if (!scenarioData[key].sessions) scenarioData[key].sessions = [];
@@ -297,7 +293,27 @@
         },
         (err) => console.error("training onSnapshot error", err)
       );
+      trainingUnsubs.push(unsub);
     }
+  }
+  function unsubscribeTraining() {
+    for (const unsub of trainingUnsubs) unsub();
+    trainingUnsubs = [];
+    scenarioData = { droog: { sessions: [] }, nat: { sessions: [] } };
+    render();
+  }
+
+  TE.onAuthChange((u) => {
+    unlocked = u;
+    trainingSectionEl.hidden = !unlocked;
+    trainingLockedEl.hidden = unlocked;
+    if (unlocked) subscribeTraining();
+    else unsubscribeTraining();
+  });
+
+  function boot() {
+    if (!TE.db) return;
+    trainingCol = TE.db.collection("training");
   }
 
   document.addEventListener("DOMContentLoaded", boot);

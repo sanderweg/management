@@ -69,46 +69,49 @@
   <div class="empty-hint" id="paymentsHint" hidden></div>
 
   <div class="list-head" style="margin-top: 28px;"><h2>Overzicht</h2></div>
-  <div class="stats" id="stats"></div>
+  <div class="locked-note" id="financeLocked">Ontgrendel met het wachtwoord om de boekhouding (inkomsten, uitgaven, saldo) te bekijken en te bewerken.</div>
 
-  <form class="card entry-form" id="entryForm" hidden>
-    <div class="field">
-      <label for="inType">Type</label>
-      <select id="inType" name="type">
-        <option value="in">Inkomst</option>
-        <option value="out">Uitgave</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="inEvent">Race / event</label>
-      <input id="inEvent" name="event" type="text" placeholder="bv. 24H Braga" autocomplete="off" list="eventOptions">
-      <datalist id="eventOptions"></datalist>
-    </div>
-    <div class="field">
-      <label for="inDesc">Omschrijving</label>
-      <input id="inDesc" name="desc" type="text" placeholder="bv. kart huur" autocomplete="off" required>
-    </div>
-    <div class="field">
-      <label for="inAmount">Bedrag (€)</label>
-      <input id="inAmount" name="amount" type="number" step="0.01" min="0" placeholder="0,00" required>
-    </div>
-    <div class="field">
-      <label for="inDate">Datum</label>
-      <input id="inDate" name="date" type="date">
-    </div>
-    <button class="primary" type="submit">Toevoegen</button>
-  </form>
-  <div class="locked-note" id="lockedNote" hidden>Ontgrendel met het wachtwoord om een inkomst of uitgave toe te voegen.</div>
+  <div id="financeSection" hidden>
+    <div class="stats" id="stats"></div>
 
-  <div class="list-head"><h2>Boekhouding</h2></div>
-  <div class="card ledger-wrap">
-    <table class="ledger" id="ledgerTable">
-      <thead>
-        <tr><th>Datum</th><th>Type</th><th>Race / event</th><th>Omschrijving</th><th style="text-align:right;">Bedrag</th><th></th></tr>
-      </thead>
-      <tbody id="ledgerBody"></tbody>
-    </table>
-    <div class="empty-hint" id="ledgerHint">Nog geen boekingen.</div>
+    <form class="card entry-form" id="entryForm">
+      <div class="field">
+        <label for="inType">Type</label>
+        <select id="inType" name="type">
+          <option value="in">Inkomst</option>
+          <option value="out">Uitgave</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="inEvent">Race / event</label>
+        <input id="inEvent" name="event" type="text" placeholder="bv. 24H Braga" autocomplete="off" list="eventOptions">
+        <datalist id="eventOptions"></datalist>
+      </div>
+      <div class="field">
+        <label for="inDesc">Omschrijving</label>
+        <input id="inDesc" name="desc" type="text" placeholder="bv. kart huur" autocomplete="off" required>
+      </div>
+      <div class="field">
+        <label for="inAmount">Bedrag (€)</label>
+        <input id="inAmount" name="amount" type="number" step="0.01" min="0" placeholder="0,00" required>
+      </div>
+      <div class="field">
+        <label for="inDate">Datum</label>
+        <input id="inDate" name="date" type="date">
+      </div>
+      <button class="primary" type="submit">Toevoegen</button>
+    </form>
+
+    <div class="list-head"><h2>Boekhouding</h2></div>
+    <div class="card ledger-wrap">
+      <table class="ledger" id="ledgerTable">
+        <thead>
+          <tr><th>Datum</th><th>Type</th><th>Race / event</th><th>Omschrijving</th><th style="text-align:right;">Bedrag</th><th></th></tr>
+        </thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+      <div class="empty-hint" id="ledgerHint">Nog geen boekingen.</div>
+    </div>
   </div>
 </div>
 
@@ -121,13 +124,15 @@
   let invites = [];
   let finance = [];
   let financeCol = null;
+  let financeUnsub = null;
   let confirmDeleteId = null;
 
   const paymentsEl = document.getElementById("payments");
   const paymentsHintEl = document.getElementById("paymentsHint");
   const statsEl = document.getElementById("stats");
   const entryFormEl = document.getElementById("entryForm");
-  const lockedNoteEl = document.getElementById("lockedNote");
+  const financeLockedEl = document.getElementById("financeLocked");
+  const financeSectionEl = document.getElementById("financeSection");
   const ledgerBody = document.getElementById("ledgerBody");
   const ledgerHint = document.getElementById("ledgerHint");
   const eventOptionsEl = document.getElementById("eventOptions");
@@ -335,11 +340,26 @@
     }
   });
 
+  function subscribeFinance() {
+    if (financeUnsub || !financeCol) return;
+    financeUnsub = financeCol.onSnapshot(
+      (snap) => { finance = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderStats(); renderLedger(); updateEventOptions(); },
+      (err) => console.error("finance onSnapshot error", err)
+    );
+  }
+  function unsubscribeFinance() {
+    if (financeUnsub) { financeUnsub(); financeUnsub = null; }
+    finance = [];
+    renderStats();
+    renderLedger();
+  }
+
   TE.onAuthChange((u) => {
     unlocked = u;
-    entryFormEl.hidden = !unlocked;
-    lockedNoteEl.hidden = unlocked;
-    renderLedger();
+    financeSectionEl.hidden = !unlocked;
+    financeLockedEl.hidden = unlocked;
+    if (unlocked) subscribeFinance();
+    else unsubscribeFinance();
   });
 
   function boot() {
@@ -349,10 +369,6 @@
     TE.db.collection("invites").onSnapshot(
       (snap) => { invites = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPayments(); },
       (err) => console.error("invites onSnapshot error", err)
-    );
-    financeCol.onSnapshot(
-      (snap) => { finance = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderStats(); renderLedger(); updateEventOptions(); },
-      (err) => console.error("finance onSnapshot error", err)
     );
   }
 
