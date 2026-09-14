@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Endurance — Management</title>
+<meta name="description" content="Overzicht van inschrijvingen, financiën en trainingsopbouw voor het team.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="page">
+    <div class="title-block">
+      <span class="eyebrow">Team Endurance</span>
+      <h1>Management</h1>
+      <p>Eén plek voor inschrijvingen, financiën en de opbouw van de trainingen.</p>
+    </div>
+    <div class="auth-box">
+      <button class="auth-pill" id="authPill" type="button">🔒 Alleen-lezen · ontgrendelen</button>
+      <form class="unlock-form" id="unlockForm">
+        <input type="password" id="pwInput" placeholder="Wachtwoord" autocomplete="current-password">
+        <button type="submit">Ontgrendel</button>
+      </form>
+      <div class="auth-error" id="authError"></div>
+    </div>
+  </header>
+
+  <div class="config-warning" id="configWarning">
+    Firebase is nog niet ingesteld. Vul <code>firebaseConfig</code> in <code>auth.js</code> in met de gegevens uit je Firebase-project.
+  </div>
+
+  <div class="hub-grid">
+    <a class="hub-tile" href="https://startlijst.teamendurance.nl/" target="_blank" rel="noopener">
+      <div class="hub-icon">🏁</div>
+      <h2>Inschrijvingen</h2>
+      <p>Wie je hebt gevraagd om mee te racen, per race, met status ja / nee / kan niet / betaald.</p>
+      <span class="hub-meta">startlijst.teamendurance.nl →</span>
+    </a>
+
+    <a class="hub-tile" href="financien.html">
+      <div class="hub-icon">💶</div>
+      <h2>Financiën</h2>
+      <p>Wie er nog moet betalen per race, plus inkomsten en uitgaven op een rij.</p>
+      <span class="hub-meta">Openen →</span>
+    </a>
+
+    <a class="hub-tile" href="training.html">
+      <div class="hub-icon">🎯</div>
+      <h2>Training</h2>
+      <p>Opbouw van de training en opdrachten, met een droog- en een nat-scenario.</p>
+      <span class="hub-meta">Openen →</span>
+    </a>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>

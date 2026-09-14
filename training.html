@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training — Team Endurance</title>
+<meta name="description" content="Opbouw van de training en opdrachten, met een droog- en een nat-scenario.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+<style>
+  .scenario-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .scenario-tabs button.ghost { font-size: 0.95rem; padding: 10px 18px; }
+
+  .new-session-form {
+    display: flex;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 16px;
+  }
+  .new-session-form .field { flex: 1; }
+
+  .session-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+  }
+  .session-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .session-title { font-family: "Rajdhani", sans-serif; font-weight: 700; font-size: 1.1rem; margin: 0; }
+
+  .exercise-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .exercise-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    padding: 7px 10px;
+    background: var(--surface-2);
+    border-radius: 8px;
+  }
+  .exercise-item .num { color: var(--accent); font-weight: 700; font-family: "Rajdhani", sans-serif; flex: 0 0 auto; width: 1.4em; }
+  .exercise-item .txt { flex: 1; }
+  .exercise-item .del-btn { width: 24px; height: 24px; font-size: 0.75rem; }
+
+  .add-exercise-form { display: flex; gap: 8px; }
+  .add-exercise-form input {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85rem;
+  }
+  .add-exercise-form input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .add-exercise-form button { flex: 0 0 auto; padding: 8px 14px; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="crumbs"><a href="index.html">← Management</a></div>
+  <header class="page">
+    <div class="title-block">
+      <span class="eyebrow">Team Endurance</span>
+      <h1>Training</h1>
+      <p>Opbouw van de trainingen en de opdrachten, apart voor droog en nat.</p>
+    </div>
+    <div class="auth-box">
+      <button class="auth-pill" id="authPill" type="button">🔒 Alleen-lezen · ontgrendelen</button>
+      <form class="unlock-form" id="unlockForm">
+        <input type="password" id="pwInput" placeholder="Wachtwoord" autocomplete="current-password">
+        <button type="submit">Ontgrendel</button>
+      </form>
+      <div class="auth-error" id="authError"></div>
+    </div>
+  </header>
+
+  <div class="config-warning" id="configWarning">
+    Firebase is nog niet ingesteld. Vul <code>firebaseConfig</code> in <code>auth.js</code> in.
+  </div>
+
+  <div class="scenario-tabs">
+    <button type="button" class="ghost active" id="tabDroog">☀️ Droog</button>
+    <button type="button" class="ghost" id="tabNat">🌧️ Nat</button>
+  </div>
+
+  <form class="new-session-form" id="newSessionForm" hidden>
+    <div class="field">
+      <label for="inSessionTitle">Nieuw trainingsblok</label>
+      <input id="inSessionTitle" type="text" placeholder="bv. Blok 1 — Lijnvoering &amp; remwerk" autocomplete="off" required>
+    </div>
+    <button class="primary" type="submit">Toevoegen</button>
+  </form>
+  <div class="locked-note" id="lockedNote" hidden>Ontgrendel met het wachtwoord om trainingsblokken en opdrachten te bewerken.</div>
+
+  <div id="sessions"></div>
+  <div class="empty-hint" id="emptyHint" hidden></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="auth.js"></script>
+<script>
+  let unlocked = false;
+  let trainingCol = null;
+  let scenarioData = { droog: { sessions: [] }, nat: { sessions: [] } };
+  let activeScenario = "droog";
+  let confirmDeleteSession = null;
+
+  const tabDroog = document.getElementById("tabDroog");
+  const tabNat = document.getElementById("tabNat");
+  const newSessionForm = document.getElementById("newSessionForm");
+  const lockedNoteEl = document.getElementById("lockedNote");
+  const sessionsEl = document.getElementById("sessions");
+  const emptyHintEl = document.getElementById("emptyHint");
+
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function currentSessions() {
+    return (scenarioData[activeScenario] && scenarioData[activeScenario].sessions) || [];
+  }
+
+  function saveScenario(sessions) {
+    if (!trainingCol) return;
+    trainingCol.doc(activeScenario).set({ sessions, updatedAt: new Date().toISOString() }, { merge: true });
+  }
+
+  function addSession(title) {
+    saveScenario([...currentSessions(), { id: genId(), title, exercises: [] }]);
+  }
+  function removeSession(id) {
+    saveScenario(currentSessions().filter((s) => s.id !== id));
+  }
+  function addExercise(sessionId, text) {
+    saveScenario(currentSessions().map((s) => (s.id === sessionId ? { ...s, exercises: [...s.exercises, text] } : s)));
+  }
+  function removeExercise(sessionId, index) {
+    saveScenario(
+      currentSessions().map((s) => {
+        if (s.id !== sessionId) return s;
+        const exercises = s.exercises.slice();
+        exercises.splice(index, 1);
+        return { ...s, exercises };
+      })
+    );
+  }
+
+  function setActiveScenario(key) {
+    activeScenario = key;
+    tabDroog.classList.toggle("active", key === "droog");
+    tabNat.classList.toggle("active", key === "nat");
+    confirmDeleteSession = null;
+    render();
+  }
+  tabDroog.addEventListener("click", () => setActiveScenario("droog"));
+  tabNat.addEventListener("click", () => setActiveScenario("nat"));
+
+  function render() {
+    newSessionForm.hidden = !unlocked;
+    lockedNoteEl.hidden = unlocked;
+
+    sessionsEl.innerHTML = "";
+    const sessions = currentSessions();
+
+    if (sessions.length === 0) {
+      emptyHintEl.hidden = false;
+      emptyHintEl.textContent = unlocked
+        ? "Nog geen trainingsblokken voor dit scenario — voeg er hierboven een toe."
+        : "Nog geen trainingsblokken voor dit scenario.";
+      return;
+    }
+    emptyHintEl.hidden = true;
+
+    for (const session of sessions) {
+      sessionsEl.appendChild(renderSession(session));
+    }
+  }
+
+  function renderSession(session) {
+    const card = document.createElement("div");
+    card.className = "session-card";
+
+    const head = document.createElement("div");
+    head.className = "session-head";
+    const title = document.createElement("h3");
+    title.className = "session-title";
+    title.textContent = session.title;
+    head.appendChild(title);
+
+    if (unlocked) {
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "del-btn" + (confirmDeleteSession === session.id ? " confirm" : "");
+      del.textContent = confirmDeleteSession === session.id ? "Blok verwijderen?" : "✕";
+      del.addEventListener("click", () => {
+        if (confirmDeleteSession === session.id) removeSession(session.id);
+        else { confirmDeleteSession = session.id; render(); }
+      });
+      head.appendChild(del);
+    }
+    card.appendChild(head);
+
+    const list = document.createElement("ul");
+    list.className = "exercise-list";
+    session.exercises.forEach((ex, idx) => {
+      const li = document.createElement("li");
+      li.className = "exercise-item";
+      const num = document.createElement("span");
+      num.className = "num";
+      num.textContent = (idx + 1) + ".";
+      li.appendChild(num);
+      const txt = document.createElement("span");
+      txt.className = "txt";
+      txt.textContent = ex;
+      li.appendChild(txt);
+      if (unlocked) {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "del-btn";
+        del.textContent = "✕";
+        del.title = "Opdracht verwijderen";
+        del.addEventListener("click", () => removeExercise(session.id, idx));
+        li.appendChild(del);
+      }
+      list.appendChild(li);
+    });
+    card.appendChild(list);
+
+    if (unlocked) {
+      const form = document.createElement("form");
+      form.className = "add-exercise-form";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Nieuwe opdracht toevoegen…";
+      form.appendChild(input);
+      const btn = document.createElement("button");
+      btn.type = "submit";
+      btn.className = "ghost";
+      btn.textContent = "+ Toevoegen";
+      form.appendChild(btn);
+      form.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const val = input.value.trim();
+        if (!val) return;
+        addExercise(session.id, val);
+        input.value = "";
+        input.focus();
+      });
+      card.appendChild(form);
+    }
+
+    return card;
+  }
+
+  newSessionForm.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const input = document.getElementById("inSessionTitle");
+    const val = input.value.trim();
+    if (!val) return;
+    addSession(val);
+    input.value = "";
+    input.focus();
+  });
+
+  document.addEventListener("click", (ev) => {
+    if (confirmDeleteSession && !ev.target.closest(".del-btn")) {
+      confirmDeleteSession = null;
+      render();
+    }
+  });
+
+  TE.onAuthChange((u) => {
+    unlocked = u;
+    render();
+  });
+
+  function boot() {
+    if (!TE.db) return;
+    trainingCol = TE.db.collection("training");
+    for (const key of ["droog", "nat"]) {
+      trainingCol.doc(key).onSnapshot(
+        (snap) => {
+          scenarioData[key] = snap.exists ? snap.data() : { sessions: [] };
+          if (!scenarioData[key].sessions) scenarioData[key].sessions = [];
+          render();
+        },
+        (err) => console.error("training onSnapshot error", err)
+      );
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
+</script>
+</body>
+</html>
