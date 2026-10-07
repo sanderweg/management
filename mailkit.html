@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mailkit — Team Endurance</title>
+<meta name="description" content="Mailtemplates in het Nederlands en Engels: handtekening, sponsoraanvraag, inschrijving, trainingsdata en teamupdate.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+<style>
+  .mk-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+  .mk-top .logo { width: 44px; height: 44px; border-radius: 9px; border: 1px solid var(--border); flex: 0 0 auto; }
+  .mk-langs { display: flex; gap: 8px; margin-left: auto; }
+
+  .mk-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
+  .mk-tabs button.ghost { font-size: 0.85rem; padding: 8px 14px; }
+
+  .mk-head p { margin: 4px 0 0; color: var(--text-muted); font-size: 0.88rem; max-width: 62ch; }
+
+  .mk-subject { display: flex; align-items: center; gap: 10px; margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px 6px 6px 12px; box-shadow: var(--shadow); }
+  .mk-subject label { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); flex: none; }
+  .mk-subject input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 6px 4px; font: inherit; font-weight: 600; color: var(--text); }
+  .mk-subject input:focus-visible { outline: none; }
+  .mk-subject button.ghost { padding: 6px 12px; font-size: 0.8rem; flex: none; }
+
+  /* the preview always stays "paper white" — it's a mock of an email client */
+  .mk-paper { margin-top: 12px; background: #ffffff; color: #1a1a1a; border: 1px solid var(--border); border-radius: 12px; padding: 24px 26px; overflow-x: auto; box-shadow: var(--shadow); }
+  .mk-paper .ph { background: #fff0b3; color: #5a4200; border-radius: 3px; padding: 0 2px; }
+
+  .mk-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  .mk-actions .spacer { flex: 1; }
+  .mk-hint { font-size: 0.8rem; color: var(--text-muted); margin: 10px 2px 0; }
+  .mk-hint .ph-sample { background: #fff0b3; color: #5a4200; border-radius: 3px; padding: 0 4px; }
+
+  details.mk-help { margin-top: 26px; border-top: 1px solid var(--border); padding-top: 14px; }
+  details.mk-help summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+  details.mk-help ol { margin: 12px 0 0; padding-left: 1.3em; max-width: 70ch; color: var(--text-muted); font-size: 0.88rem; }
+  details.mk-help li { margin-bottom: 6px; }
+  details.mk-help li b { color: var(--text); font-weight: 600; }
+
+  .mk-toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; max-width: calc(100vw - 32px); text-align: center; z-index: 5; }
+  .mk-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 640px) {
+    .mk-langs { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .mk-toast { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="crumbs"><a href="index.html">← Management</a></div>
+  <header class="page">
+    <div class="title-block">
+      <span class="eyebrow">Team Endurance</span>
+      <h1>Mailkit</h1>
+      <p>Mailtemplates, klaar om te plakken in Proton Mail.</p>
+    </div>
+  </header>
+
+  <div class="mk-top">
+    <img class="logo" id="mkLogo" alt="Team Endurance NL">
+    <div class="mk-langs" role="group" aria-label="Taal mail">
+      <button type="button" class="ghost active" id="lang-nl">NL</button>
+      <button type="button" class="ghost" id="lang-en">EN</button>
+    </div>
+  </div>
+
+  <nav class="mk-tabs" role="tablist" aria-label="Soort mail" id="tabs"></nav>
+
+  <main>
+    <div class="mk-head">
+      <h2 id="t-title" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:1.5rem;margin:0;"></h2>
+      <p id="t-desc"></p>
+    </div>
+
+    <div class="mk-subject" id="subjectRow">
+      <label for="subject">Onderwerp</label>
+      <input id="subject" type="text" autocomplete="off">
+      <button type="button" class="ghost" id="copySubject">Kopieer</button>
+    </div>
+
+    <div class="mk-paper" id="paper" contenteditable="true" spellcheck="false" aria-label="Voorbeeld van de mail, direct bewerkbaar"></div>
+
+    <div class="mk-actions">
+      <button type="button" class="primary" id="copyRich">Kopieer mail</button>
+      <button type="button" class="ghost" id="copyText">Kopieer als tekst</button>
+      <span class="spacer"></span>
+      <button type="button" class="ghost" id="reset">Herstel origineel</button>
+    </div>
+    <p class="mk-hint">De <span class="ph-sample">gele velden</span> zijn invulvelden. Klik in de mail om ze aan te passen; de gele kleur wordt bij het kopiëren weggelaten.</p>
+
+    <details class="mk-help">
+      <summary>Zo gebruik je dit in Proton Mail</summary>
+      <ol>
+        <li><b>Vul de velden in</b> tussen de [haakjes]. Je kunt overal in de mail typen, ook de tekst rondom veranderen.</li>
+        <li><b>Klik op Kopieer mail</b>, open een nieuw bericht in Proton Mail en plak (Ctrl+V of Cmd+V). Plak het onderwerp apart in het onderwerpveld.</li>
+        <li><b>Handtekening vast instellen:</b> kopieer de tab Handtekening, ga in Proton naar Instellingen, Alle instellingen, Identiteiten en adressen, kies je adres en plak hem bij Handtekening. Komt het logo niet mee, voeg het dan met het afbeeldingsicoon in die editor toe.</li>
+        <li><b>Voor het versturen:</b> de pagina waarschuwt als er nog [invulvelden] over zijn, maar controleer altijd even zelf.</li>
+      </ol>
+    </details>
+  </main>
+</div>
+<div class="mk-toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  var LOGO = "data:image/jpeg;base64,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";
+  document.getElementById('mkLogo').src = LOGO;
+  var MAIL = "endurancenl@proton.me";
+  var RED = "#d4202b", NAVY = "#1d2f6f";
+
+  /* ---------- small builders (inline styles so they survive copy/paste) ---------- */
+  function f(s){ return s.replace(/\[([^\]]+)\]/g, '<span class="ph">[$1]</span>'); }
+  function p(s){ return '<p style="margin:0 0 12px">' + f(s) + '</p>'; }
+  function h(s){ return '<p style="margin:18px 0 6px;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:' + RED + '">' + f(s) + '</p>'; }
+  function ul(items){ return '<ul style="margin:0 0 12px;padding-left:20px">' + items.map(function(i){ return '<li style="margin:0 0 4px">' + f(i) + '</li>'; }).join('') + '</ul>'; }
+  function tbl(rows){
+    return '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 14px;font-size:14px">' +
+      rows.map(function(r){
+        return '<tr><td style="padding:5px 18px 5px 0;color:#555;vertical-align:top;white-space:nowrap">' + r[0] + '</td><td style="padding:5px 0;vertical-align:top;font-weight:bold">' + f(r[1]) + '</td></tr>';
+      }).join('') + '</table>';
+  }
+  function wrap(inner){ return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a1a1a">' + inner + '</div>'; }
+
+  function sig(lang){
+    var role = lang === 'nl' ? '[Functie, bijv. Teamcaptain]' : '[Role, e.g. Team captain]';
+    var tel = lang === 'nl' ? '[telefoonnummer]' : '[phone number]';
+    var web = lang === 'nl' ? '[website of Instagram]' : '[website or Instagram]';
+    return '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#1a1a1a"><tr>' +
+      '<td style="padding-right:16px;vertical-align:middle"><img src="' + LOGO + '" width="96" height="96" alt="Team Endurance NL" style="display:block;border:0"></td>' +
+      '<td style="border-left:3px solid ' + RED + ';padding-left:16px;vertical-align:middle">' +
+        '<div style="font-size:15px;font-weight:bold">' + f('[' + (lang === 'nl' ? 'Naam' : 'Name') + ']') + '</div>' +
+        '<div style="color:#555">' + f(role) + '</div>' +
+        '<div style="margin-top:6px;font-weight:bold;letter-spacing:.5px;color:' + NAVY + '">TEAM ENDURANCE NL &middot; ENL RACING TEAM</div>' +
+        '<div><a href="mailto:' + MAIL + '" style="color:' + RED + ';text-decoration:none">' + MAIL + '</a> &middot; ' + f(tel) + '</div>' +
+        '<div>' + f(web) + '</div>' +
+      '</td></tr></table>';
+  }
+  function closing(lang, word){ return '<p style="margin:18px 0 14px">' + word + '</p>' + sig(lang); }
+
+  /* ---------- templates ---------- */
+  var T = {
+    signature: {
+      title: { nl: 'Handtekening', en: 'Signature' },
+      desc: 'Vaste mailhandtekening met logo, teamnaam en contactgegevens. Vul je naam en functie in en zet hem één keer in Proton.',
+      nl: { subject: null, html: wrap(sig('nl')) },
+      en: { subject: null, html: wrap(sig('en')) }
+    },
+
+    sponsor: {
+      title: { nl: 'Sponsoraanvraag', en: 'Sponsorship request' },
+      desc: 'Eerste benadering van een bedrijf. Kort, concreet en met een duidelijke vraag aan het eind. Voeg zelf je sponsorpakket als bijlage toe.',
+      nl: {
+        subject: 'Sponsormogelijkheden bij Team Endurance NL',
+        html: wrap(
+          p('Beste [naam contactpersoon],') +
+          p('Mijn naam is [Naam]. Namens Team Endurance NL (ENL Racing Team) neem ik contact met u op. Wij zijn een Nederlands karting-team dat deelneemt aan endurance-races en we zoeken partners waarmee we ons seizoen [jaar] kunnen realiseren.') +
+          p('Waarom [bedrijfsnaam]? [Eén zin over de link tussen jullie bedrijf en het team, bijvoorbeeld regio, branche of een gedeelde passie voor racen.]') +
+          h('Wat wij u bieden') +
+          ul([
+            'Uw logo op onze karts, teamkleding en [tent / trailer]',
+            'Zichtbaarheid via onze social media en [website]',
+            'Een uitnodiging voor een raceweekend om het team live te zien',
+            '[Eventuele extra: vermelding in race-updates, content, netwerkmoment]'
+          ]) +
+          h('Onze races dit seizoen') +
+          ul(['[Evenement 1, circuit, datum]', '[Evenement 2, circuit, datum]', '[Evenement 3, circuit, datum]']) +
+          p('In de bijlage vindt u ons sponsorpakket met de mogelijkheden en tarieven. Graag licht ik het toe in een kort telefoongesprek of ik kom bij u langs. Schikt [dag / datum] u?') +
+          closing('nl', 'Met vriendelijke groet,')
+        )
+      },
+      en: {
+        subject: 'Sponsorship opportunities with Team Endurance NL',
+        html: wrap(
+          p('Dear [contact name],') +
+          p('My name is [Name], writing on behalf of Team Endurance NL (ENL Racing Team). We are a Dutch karting team competing in endurance races, and we are looking for partners to help us make our [year] season happen.') +
+          p('Why [company name]? [One sentence on the link between your company and the team, for example region, industry or a shared passion for racing.]') +
+          h('What we offer') +
+          ul([
+            'Your logo on our karts, team clothing and [tent / trailer]',
+            'Exposure through our social media and [website]',
+            'An invitation to a race weekend to see the team live',
+            '[Any extras: mentions in race updates, content, networking moment]'
+          ]) +
+          h('Our races this season') +
+          ul(['[Event 1, circuit, date]', '[Event 2, circuit, date]', '[Event 3, circuit, date]']) +
+          p('Attached you will find our sponsorship package with the options and rates. I would be glad to explain it in a short call or in person. Would [day / date] suit you?') +
+          closing('en', 'Kind regards,')
+        )
+      }
+    },
+
+    entry: {
+      title: { nl: 'Inschrijving', en: 'Race entry' },
+      desc: 'Team inschrijven voor een endurance-race of vragen stellen aan een circuit of organisator, met alle teamgegevens in één blok.',
+      nl: {
+        subject: 'Inschrijving [evenement] – Team Endurance NL',
+        html: wrap(
+          p('Geachte organisatie,') +
+          p('Hierbij willen wij Team Endurance NL (ENL Racing Team) inschrijven voor [evenement] op [datum] op [circuit].') +
+          h('Teamgegevens') +
+          tbl([
+            ['Teamnaam', 'Team Endurance NL (ENL Racing Team)'],
+            ['Klasse / categorie', '[klasse]'],
+            ['Aantal karts', '[aantal]'],
+            ['Aantal rijders', '[aantal]'],
+            ['Teamcaptain', '[Naam]'],
+            ['Telefoon', '[telefoonnummer]'],
+            ['E-mail', MAIL]
+          ]) +
+          p('Rijders: [naam 1], [naam 2], [naam 3], [naam 4]') +
+          p('Kunt u ons laten weten:') +
+          ul([
+            'of onze inschrijving is ontvangen en wat de volgende stappen zijn',
+            'de kosten en de betaalinformatie',
+            'het tijdschema, de rijdersbriefing en het reglement',
+            'de mogelijkheden voor pitbox, paddockplek en [transponder]'
+          ]) +
+          p('Alvast bedankt voor uw reactie. Bij vragen kunt u mij bereiken op [telefoonnummer].') +
+          closing('nl', 'Met vriendelijke groet,')
+        )
+      },
+      en: {
+        subject: 'Entry for [event] – Team Endurance NL',
+        html: wrap(
+          p('Dear organisers,') +
+          p('We would like to enter Team Endurance NL (ENL Racing Team) for [event] on [date] at [circuit].') +
+          h('Team details') +
+          tbl([
+            ['Team name', 'Team Endurance NL (ENL Racing Team)'],
+            ['Class / category', '[class]'],
+            ['Number of karts', '[number]'],
+            ['Number of drivers', '[number]'],
+            ['Team captain', '[Name]'],
+            ['Phone', '[phone number]'],
+            ['Email', MAIL]
+          ]) +
+          p('Drivers: [name 1], [name 2], [name 3], [name 4]') +
+          p('Could you please let us know:') +
+          ul([
+            'whether our entry has been received and what the next steps are',
+            'the entry fee and payment details',
+            'the schedule, driver briefing and regulations',
+            'the options for pit box, paddock space and [transponder]'
+          ]) +
+          p('Thank you in advance for your reply. If you have any questions, you can reach me on [phone number].') +
+          closing('en', 'Kind regards,')
+        )
+      }
+    },
+
+    training: {
+      title: { nl: 'Trainingsdata opvragen', en: 'Training dates request' },
+      desc: 'Aanvraag bij de kartbaan voor beschikbare trainingsdata tot eind van het jaar, zodat jullie rijders kunnen uitnodigen en trainingen kunnen voorbereiden.',
+      nl: {
+        subject: 'Aanvraag trainingsdata tot eind van het jaar – Team Endurance NL',
+        html: wrap(
+          p('Beste [naam contactpersoon / kartbaan],') +
+          p('Namens Team Endurance NL (ENL Racing Team) zou ik graag willen weten welke trainingsdata er tot eind van het jaar nog beschikbaar zijn op [naam circuit].') +
+          p('Zodra wij hier zicht op hebben, kunnen wij onze rijders uitnodigen en de trainingen inplannen, dus we horen het graag zo spoedig mogelijk.') +
+          h('Graag ontvangen wij') +
+          ul([
+            'De beschikbare data tot eind van het jaar',
+            'De mogelijke tijdblokken per datum',
+            'De tarieven en eventuele voorwaarden voor een vaste teamtraining'
+          ]) +
+          p('Mocht het handiger zijn om dit telefonisch of in een kort gesprek te bespreken, dan plannen we dat graag in. Alvast bedankt voor de moeite.') +
+          closing('nl', 'Met vriendelijke groet,')
+        )
+      },
+      en: {
+        subject: 'Training dates request through end of year – Team Endurance NL',
+        html: wrap(
+          p('Dear [contact name / kart track],') +
+          p('On behalf of Team Endurance NL (ENL Racing Team), I would like to know which training dates are still available through the end of the year at [circuit name].') +
+          p('Once we know this, we can invite our riders and schedule the trainings, so we would appreciate hearing back as soon as possible.') +
+          h('We would appreciate receiving') +
+          ul([
+            'The available dates through the end of the year',
+            'The possible time slots per date',
+            'Rates and any conditions for a recurring team training'
+          ]) +
+          p('If it is easier to discuss this by phone or in a short call, we are happy to set that up. Thank you in advance.') +
+          closing('en', 'Kind regards,')
+        )
+      }
+    },
+
+    update: {
+      title: { nl: 'Teamupdate', en: 'Team update' },
+      desc: 'Korte terugblik na een race met vooruitblik en een oproep. Bedoeld voor teamleden, sponsors en supporters.',
+      nl: {
+        subject: 'ENL Update – [race] | [maand]',
+        html: wrap(
+          p('Hoi [team / sponsors / supporters],') +
+          p('Een korte update van Team Endurance NL.') +
+          h('Terugblik') +
+          p('[Race] op [circuit], [datum]. We eindigden als [positie] van [aantal] teams. [Hoogtepunt of les van het weekend.]') +
+          h('Volgende race') +
+          p('[Evenement], [circuit], [datum]. [Wat we willen bereiken.]') +
+          h('Wat we nodig hebben') +
+          ul(['[Hulp in de pit of bij de kart]', '[Sponsoring of materiaal]', '[Supporters langs de baan]']) +
+          p('Met dank aan onze sponsors: [sponsornamen].') +
+          closing('nl', 'Sportieve groet,')
+        )
+      },
+      en: {
+        subject: 'ENL Update – [race] | [month]',
+        html: wrap(
+          p('Hi [team / sponsors / supporters],') +
+          p('A quick update from Team Endurance NL.') +
+          h('Race recap') +
+          p('[Race] at [circuit], [date]. We finished [position] out of [number] teams. [Highlight or lesson from the weekend.]') +
+          h('Next race') +
+          p('[Event], [circuit], [date]. [What we are aiming for.]') +
+          h('What we need') +
+          ul(['[Help in the pit or on the kart]', '[Sponsorship or equipment]', '[Supporters trackside]']) +
+          p('With thanks to our sponsors: [sponsor names].') +
+          closing('en', 'Racing regards,')
+        )
+      }
+    }
+  };
+  var ORDER = ['signature', 'sponsor', 'entry', 'training', 'update'];
+
+  /* ---------- state ---------- */
+  var state = { tpl: 'sponsor', lang: 'nl' };
+  var edits = {};   // key -> {html, subject}
+  try {
+    var saved = JSON.parse(localStorage.getItem('te-mailkit') || '{}');
+    if (saved.tpl && T[saved.tpl]) state.tpl = saved.tpl;
+    if (saved.lang === 'nl' || saved.lang === 'en') state.lang = saved.lang;
+  } catch (e) {}
+  function persist(){ try { localStorage.setItem('te-mailkit', JSON.stringify(state)); } catch (e) {} }
+
+  var $ = function(id){ return document.getElementById(id); };
+  var paper = $('paper'), subject = $('subject');
+  function key(){ return state.tpl + ':' + state.lang; }
+
+  function stash(){ edits[key()] = { html: paper.innerHTML, subject: subject.value }; }
+
+  function render(){
+    var t = T[state.tpl], v = t[state.lang], e = edits[key()];
+    $('t-title').textContent = t.title[state.lang];
+    $('t-desc').textContent = t.desc;
+    var hasSubject = v.subject !== null;
+    $('subjectRow').hidden = !hasSubject;
+    subject.value = hasSubject ? (e ? e.subject : v.subject) : '';
+    paper.innerHTML = e ? e.html : v.html;
+    $('lang-nl').classList.toggle('active', state.lang === 'nl');
+    $('lang-en').classList.toggle('active', state.lang === 'en');
+    Array.prototype.forEach.call(document.querySelectorAll('.mk-tabs button'), function(b){
+      b.classList.toggle('active', b.dataset.tpl === state.tpl);
+    });
+    persist();
+  }
+
+  /* tabs */
+  var tabs = $('tabs');
+  ORDER.forEach(function(k){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'ghost'; b.dataset.tpl = k; b.setAttribute('role', 'tab');
+    b.textContent = T[k].title.nl;
+    b.addEventListener('click', function(){ stash(); state.tpl = k; render(); });
+    tabs.appendChild(b);
+  });
+  $('lang-nl').addEventListener('click', function(){ stash(); state.lang = 'nl'; render(); });
+  $('lang-en').addEventListener('click', function(){ stash(); state.lang = 'en'; render(); });
+  paper.addEventListener('input', stash);
+  subject.addEventListener('input', stash);
+  $('reset').addEventListener('click', function(){ delete edits[key()]; render(); toast('Origineel hersteld'); });
+
+  /* ---------- copy ---------- */
+  var toastTimer;
+  function toast(msg){
+    var t = $('toast'); t.textContent = msg; t.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 3200);
+  }
+  function cleanHTML(){
+    var c = paper.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.ph'), function(n){ n.replaceWith(document.createTextNode(n.textContent)); });
+    return c.innerHTML;
+  }
+  function leftover(text){ var m = text.match(/\[[^\]\n]+\]/g); return m ? m.length : 0; }
+  function warn(n){ return n ? ' Let op: er staan nog ' + n + ' [invulvelden] in.' : ''; }
+
+  function copyPlain(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return fallbackText(text); });
+    }
+    return Promise.resolve(fallbackText(text));
+  }
+  function fallbackText(text){
+    try {
+      var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(ta); ta.select(); var ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (e) { return false; }
+  }
+  function copyRich(html, text){
+    var fb = function(){
+      try {
+        var tmp = document.createElement('div'); tmp.innerHTML = html; tmp.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff';
+        document.body.appendChild(tmp);
+        var r = document.createRange(); r.selectNodeContents(tmp);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        var ok = document.execCommand('copy'); s.removeAllRanges(); tmp.remove(); return ok;
+      } catch (e) { return false; }
+    };
+    if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
+      var item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' })
+      });
+      return navigator.clipboard.write([item]).then(function(){ return true; }, function(){ return fb(); });
+    }
+    return Promise.resolve(fb());
+  }
+
+  $('copyRich').addEventListener('click', function(){
+    var text = paper.innerText;
+    copyRich(cleanHTML(), text).then(function(ok){
+      toast(ok ? 'Mail gekopieerd, plak hem in Proton Mail.' + warn(leftover(text)) : 'Kopiëren lukt hier niet. Selecteer de mail en kopieer met Ctrl+C.');
+    });
+  });
+  $('copyText').addEventListener('click', function(){
+    var text = paper.innerText.replace(/\n{3,}/g, '\n\n');
+    copyPlain(text).then(function(ok){
+      toast(ok ? 'Tekst gekopieerd.' + warn(leftover(text)) : 'Kopiëren lukt hier niet. Selecteer de tekst en kopieer met Ctrl+C.');
+    });
+  });
+  $('copySubject').addEventListener('click', function(){
+    var text = subject.value;
+    copyPlain(text).then(function(ok){
+      toast(ok ? 'Onderwerp gekopieerd.' + warn(leftover(text)) : 'Kopiëren lukt hier niet. Selecteer het onderwerp en kopieer met Ctrl+C.');
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
